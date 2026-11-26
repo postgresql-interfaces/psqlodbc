@@ -19,6 +19,13 @@ jobs:
         include:
           - os: ubuntu-latest
             name: Debian (Ubuntu)
+          # The newest PostgreSQL, from apt.postgresql.org, which is where
+          # the Debian packaging of the driver builds it. Each major adds
+          # expected output under test/expected/v<major> when it changes a
+          # message or refuses a setting, and this job is what finds that.
+          - os: ubuntu-latest
+            name: Debian (PostgreSQL 19)
+            pg_major: 19
           - os: ubuntu-latest
             name: Red Hat (Fedora)
             container: fedora:latest
@@ -28,14 +35,43 @@ jobs:
     container: ${{ matrix.container || '' }}
 
     steps:
+    - name: Add the PostgreSQL apt repository (Debian)
+      if: matrix.container == '' && matrix.pg_major != ''
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl ca-certificates
+        sudo install -d /usr/share/postgresql-common/pgdg
+        sudo curl --fail -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+          https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        . /etc/os-release
+        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc]" \
+          "https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" |
+          sudo tee /etc/apt/sources.list.d/pgdg.list
+        # The runner image ships a cluster of its own, which holds port 5432
+        # and would leave the new one on 5433. The generated odbc.ini sets no
+        # port, so the tests reach 5432 and would test the wrong server.
+        if command -v pg_lsclusters > /dev/null 2>&1; then
+          pg_lsclusters -h | while read -r ver name rest; do
+            sudo pg_dropcluster --stop "$ver" "$name"
+          done
+        fi
+
     - name: Install dependencies (Debian)
       if: matrix.container == ''
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           build-essential autoconf automake libtool \
-          libpq-dev unixodbc-dev unixodbc \
-          postgresql postgresql-client
+          libpq-dev unixodbc-dev unixodbc
+        # Only the one server, so that the cluster this job starts below is
+        # unambiguous.
+        if [ -n "${{ matrix.pg_major }}" ]; then
+          sudo apt-get install -y \
+            postgresql-${{ matrix.pg_major }} \
+            postgresql-client-${{ matrix.pg_major }}
+        else
+          sudo apt-get install -y postgresql postgresql-client
+        fi
         if ! command -v odbc_config >/dev/null 2>&1; then
           sudo tee /usr/local/bin/odbc_config > /dev/null <<'EOF'
         #!/bin/sh
@@ -79,7 +115,15 @@ jobs:
       run: |
         sudo mkdir -p /var/run/postgresql
         sudo chown postgres:postgres /var/run/postgresql
-        sudo pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start
+        # The generated odbc.ini sets no port, so the tests reach 5432. Pick
+        # the cluster that holds that port, rather than whichever comes
+        # first, so the job cannot test a server it did not mean to.
+        set -- $(pg_lsclusters -h | awk '$3 == 5432 {print $1, $2, $4; exit}')
+        [ -n "$1" ] || { echo "no cluster on port 5432"; pg_lsclusters; exit 1; }
+        echo "testing against the PostgreSQL $1 cluster $2, currently $3"
+        # Installing a server starts its cluster, and pg_ctlcluster fails on
+        # one that already runs.
+        [ "$3" = online ] || sudo pg_ctlcluster "$1" "$2" start
         sudo -u postgres createuser -s runner
         sudo -u postgres createdb contrib_regression
 
