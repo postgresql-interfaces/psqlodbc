@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     'exe/getdata-after-fetch-error-test'
-relocations:     []
-...

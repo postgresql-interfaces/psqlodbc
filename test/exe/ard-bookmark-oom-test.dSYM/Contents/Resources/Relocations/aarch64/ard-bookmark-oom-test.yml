@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     'exe/ard-bookmark-oom-test'
-relocations:     []
-...
