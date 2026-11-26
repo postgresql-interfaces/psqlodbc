@@ -440,3 +440,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# dSYM debug bundles beside the test executables on macOS
+*.dSYM/
+# Session data that local agent tooling writes into the tree
+.claude/

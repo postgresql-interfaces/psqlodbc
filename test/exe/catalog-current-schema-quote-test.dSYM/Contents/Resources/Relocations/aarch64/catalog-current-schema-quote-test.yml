@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     'exe/catalog-current-schema-quote-test'
-relocations:     []
-...
