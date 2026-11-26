@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     'exe/row-array-size-test'
-relocations:     []
-...

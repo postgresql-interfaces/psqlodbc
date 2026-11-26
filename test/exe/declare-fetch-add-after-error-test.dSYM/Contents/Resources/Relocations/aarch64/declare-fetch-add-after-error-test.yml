@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     'exe/declare-fetch-add-after-error-test'
-relocations:     []
-...
