@@ -1644,6 +1644,10 @@ static const struct
 	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" },
 	{ STMT_NO_RESPONSE, "08S01", "08S01" },
 	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" },
+	/*
+	 * The table is indexed by the error number, so every number up to the
+	 * last one needs an entry, in the order of the enum in statement.h.
+	 */
 	{ STMT_STRING_CONVERSION_ERROR, "22018", "22005" }, /* invalid character value for cast specification */
 	{ STMT_INVALID_BUFFER_LENGTH, "HY090", "S1090" }
 };

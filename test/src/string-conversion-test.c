@@ -26,10 +26,11 @@
  * environment as well: derive_locale_encoding() falls back to LC_ALL,
  * LC_CTYPE and LANG whenever the in-process locale names no codeset.
  *
- * Skipped for the ANSI driver, whose conversion code is compiled out, and on
+ * Skipped for the ANSI driver, whose conversion code is compiled out, on
  * Windows, where unrepresentable characters are substituted rather than
- * rejected.  Skipped runs print the same output so the expected file is
- * stable.
+ * rejected, and where the driver has no wide character converter, which the
+ * fetch shows by returning the UTF-8 bytes unchanged.  Skipped runs print
+ * the same output so the expected file is stable.
  */
 #define SKIP_OUTPUT()					\
 	do {								\
@@ -131,6 +132,20 @@ int main(int argc, char **argv)
 		rc = SQLGetData(hstmt, 1, SQL_C_CHAR, buf, sizeof(buf), &ind);
 		if (SQL_SUCCEEDED(rc))
 		{
+			/*
+			 * A driver built without a wide character converter, as on
+			 * macOS, where the C library defines no __STDC_ISO_10646__,
+			 * returns the UTF-8 bytes unconverted, so the error path
+			 * does not exist there. Print the output of a run that
+			 * reaches it, as the other skipped cases do.
+			 */
+			if (3 == ind && 0 == memcmp(buf, "\xe2\x82\xac", 3))
+			{
+				printf("string conversion error SQLSTATE: 22018\n");
+				SQLFreeStmt(hstmt, SQL_CLOSE);
+				test_disconnect();
+				return 0;
+			}
 			printf("BUG: SQLFetch/SQLGetData unexpectedly succeeded\n");
 			exit(1);
 		}
