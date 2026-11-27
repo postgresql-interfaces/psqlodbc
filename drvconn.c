@@ -272,7 +272,7 @@ MYLOG(DETAIL_LOG_LEVEL, "before CC_connect\n");
 	lenStrout = cbConnStrOutMax;
 	if (conn->ms_jet && lenStrout > 255)
 		lenStrout = 255;
-	makeConnectString(connStrOut, ci, lenStrout, ccsc);
+	makeConnectString(connStrOut, sizeof(connStrOut), ci, lenStrout, ccsc);
 	len = strlen(connStrOut);
 
 	if (szConnStrOut)

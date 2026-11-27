@@ -349,7 +349,7 @@ makeXaOptConnectString(char *target, int buflen, const ConnInfo *ci, BOOL abbrev
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 void
-makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len, int ccsc)
+makeConnectString(char *connect_string, size_t bufsize, const ConnInfo *ci, UWORD len, int ccsc)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
@@ -363,6 +363,12 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len, int ccsc)
 	BOOL		abbrev;
 	UInt4		flag;
 
+	/*
+	 * len is the size of the caller's buffer and decides only whether the
+	 * keywords are abbreviated. The string is built in bufsize bytes, so
+	 * that a caller whose buffer is too small still learns the length of
+	 * the whole string and can report the truncation.
+	 */
 	if (len > MAX_CONNECT_STRING) {
 		len = MAX_CONNECT_STRING;
 	}
@@ -375,7 +381,7 @@ MYLOG(0, "%s row_versioning=%s\n", __FUNCTION__, ci->row_versioning);
 MYLOG(DETAIL_LOG_LEVEL, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	encode(ci->password, encoded_item, sizeof(encoded_item));
 	/* fundamental info */
-	nlen = len;
+	nlen = bufsize;
 	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
 			got_dsn ? "DSN" : "DRIVER",
 			got_dsn ? ci->dsn : ci->drivername,
@@ -392,7 +398,7 @@ MYLOG(DETAIL_LOG_LEVEL, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr,
 
 	/* extra info */
 	hlen = strlen(connect_string);
-	nlen = len - hlen;
+	nlen = bufsize - hlen;
 MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 	if (!abbrev)
 	{
@@ -539,7 +545,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 				ABBR_SSLMODE "=%s", abbrev_sslmode(ci->sslmode, abbrevmode, sizeof(abbrevmode)));
 		}
 		hlen = strlen(connect_string);
-		nlen = len - hlen;
+		nlen = bufsize - hlen;
 		olen = snprintf(&connect_string[hlen], nlen, ";"
 				"%s"		/* ABBR_CONNSETTINGS */
 				ABBR_FETCH "=%d;"
@@ -570,7 +576,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 		if (olen < nlen || ci->rollback_on_error >= 0)
 		{
 			hlen = strlen(connect_string);
-			nlen = len - hlen;
+			nlen = bufsize - hlen;
 			/*
 			 * The PROTOCOL setting must be placed after CX flag
 			 * so that this option can override the CX setting.
@@ -590,7 +596,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 		if (0 != flag)
 		{
 			hlen = strlen(connect_string);
-			nlen = len - hlen;
+			nlen = bufsize - hlen;
 			olen = snprintf(&connect_string[hlen], nlen, ";"
 				INI_EXTRAOPTIONS "=%x;",
 				flag);

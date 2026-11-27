@@ -45,6 +45,7 @@ Behavior changes:
 Fixes:
 
 - SQLNumResultCols, SQLDescribeCol and SQLColAttribute on a prepared statement that the server cannot describe, such as one that names a table that does not exist, no longer lose memory on every call after the first. Each such call lost the copy of the statement that the call before it made ([#243](https://github.com/postgresql-interfaces/psqlodbc/issues/243)).
+- SQLDriverConnect reports a completed connection string that does not fit the output buffer again: it returns `SQL_SUCCESS_WITH_INFO` with `01004`, sets the length argument to the length of the whole string, and copies the string up to the last keyword that fits. Since 17.00.0005 it returned `SQL_SUCCESS`, a length of 0 and an empty string, so the caller could not tell the string was cut short ([#229](https://github.com/postgresql-interfaces/psqlodbc/issues/229)).
 
 ## 18.00.0007
 
