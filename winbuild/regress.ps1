@@ -178,31 +178,46 @@ function vcxfile_make($testnames, $dirnames, $vcxfile)
 	  Properties="TestName=common;Configuration=$(Configuration);srcPath=$(srcPath)"/>
 '@ > $vcxfile
 
+	<#
+	  Every test is a build of regress_one.vcxproj with its own TestName,
+	  which MSBuild treats as a project instance of its own, so one
+	  MSBuild task over all of them builds them in parallel under /m.
+	  common is compiled above, before any of them, because they all link
+	  common.obj.
+	#>
+	@'
+	<ItemGroup>
+'@ >> $vcxfile
 	for ($i=0; $i -lt $testnames.length; $i++) {
 		$testname=$testnames[$i]
 		$dirname=$dirnames[$i]
 		$testname+="-test"
 # here-string
 		@"
-        <MSBuild Projects="${scriptPath}\regress_one.vcxproj"
-	  Targets="Build"
-	  Properties="TestName=$testname;Configuration=`$(Configuration);srcPath=`$(srcPath);SubDir=$dirname"/>
+	    <RegressProject Include="`$(scriptPath)\regress_one.vcxproj">
+		<AdditionalProperties>TestName=$testname;srcPath=`$(srcPath);SubDir=$dirname</AdditionalProperties>
+	    </RegressProject>
 "@ >> $vcxfile
 	}
 # here-string
 	@'
-        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
+	    <RegressProject Include="$(scriptPath)\regress_one.vcxproj">
+		<AdditionalProperties>TestName=runsuite;srcPath=$(srcPath)..\</AdditionalProperties>
+	    </RegressProject>
+	    <RegressProject Include="$(scriptPath)\regress_one.vcxproj">
+		<AdditionalProperties>TestName=RegisterRegdsn;srcPath=$(srcPath)..\</AdditionalProperties>
+	    </RegressProject>
+	    <!-- RegressProject Include="$(scriptPath)\regress_one.vcxproj">
+		<AdditionalProperties>TestName=ConfigDsn;srcPath=$(srcPath)..\</AdditionalProperties>
+	    </RegressProject -->
+	    <RegressProject Include="$(scriptPath)\regress_one.vcxproj">
+		<AdditionalProperties>TestName=reset-db;srcPath=$(srcPath)..\</AdditionalProperties>
+	    </RegressProject>
+	</ItemGroup>
+        <MSBuild Projects="@(RegressProject)"
 	  Targets="Build"
-	  Properties="TestName=runsuite;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
-        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
-	  Targets="Build"
-	  Properties="TestName=RegisterRegdsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
-        <!-- MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
-	  Targets="Build"
-	  Properties="TestName=ConfigDsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/-->
-        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
-	  Targets="Build"
-	  Properties="TestName=reset-db;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
+	  Properties="Configuration=$(Configuration)"
+	  BuildInParallel="true"/>
     </Target>
     <Target Name="Clean">
         <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
@@ -436,7 +451,7 @@ if ("$SpecificDsn" -ne "") {
 $script:testFailures = 0
 foreach ($pl in $pary) {
 	cd $scriptPath
-	& ${msbuildexe} ${vcxfile} /tv:$MSToolsV "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
+	& ${msbuildexe} ${vcxfile} /m /tv:$MSToolsV "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
 	if ($LASTEXITCODE -ne 0) {
 		throw "`nCompile error"
 	}
