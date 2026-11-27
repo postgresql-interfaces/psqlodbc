@@ -1,0 +1,4 @@
+connected
+SQLNumResultCols failed with 42P01
+the heap did not grow over the repeated calls
+disconnecting
