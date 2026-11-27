@@ -1,0 +1,2 @@
+buffer of 2 bytes: SQL_SUCCESS_WITH_INFO 01004, the reported length does not fit the buffer
+buffer of the reported length plus 1: SQL_SUCCESS, the string fills the reported length

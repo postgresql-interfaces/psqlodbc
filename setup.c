@@ -487,9 +487,9 @@ test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 	 * characters whose trail byte is '}'.
 	 */
 #ifdef	PSQLSETUP_EXPORTS
-	makeConnectString(out_conn, ci, sizeof(out_conn), 0);
+	makeConnectString(out_conn, sizeof(out_conn), ci, sizeof(out_conn), 0);
 #else
-	makeConnectString(out_conn, ci, sizeof(out_conn), derive_locale_encoding_code());
+	makeConnectString(out_conn, sizeof(out_conn), ci, sizeof(out_conn), derive_locale_encoding_code());
 #endif	/* PSQLSETUP_EXPORTS */
 	/*
 	 * The string holds PWD= and, since pqopt_in_str is set above, any
