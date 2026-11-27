@@ -1646,10 +1646,9 @@ static const struct
 	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" },
 	/*
 	 * The table is indexed by the error number, so every number up to the
-	 * last one needs an entry. HY000 is what a number past the end of the
-	 * table falls back to.
+	 * last one needs an entry, in the order of the enum in statement.h.
 	 */
-	{ STMT_STRING_CONVERSION_ERROR, "HY000", "S1000" },
+	{ STMT_STRING_CONVERSION_ERROR, "22018", "22005" }, /* invalid character value for cast specification */
 	{ STMT_INVALID_BUFFER_LENGTH, "HY090", "S1090" }
 };
 
