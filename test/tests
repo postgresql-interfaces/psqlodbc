@@ -67,6 +67,7 @@ TESTBINS = exe/connect-test \
 	exe/odbc-escapes-test \
 	exe/odbc-conformance-test \
 	exe/wchar-char-test \
+	exe/string-conversion-test \
 	exe/params-batch-exec-test \
 	exe/params-batch-putdata-error-test \
 	exe/insert-batch-fold-test \
