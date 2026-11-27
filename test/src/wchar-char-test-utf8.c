@@ -5,14 +5,15 @@ static int utf8_test_one(HSTMT hstmt)
 
 	SQLLEN		ind, cbParam, cbParam2;
 	SQLINTEGER	cbQueryLen;
-	unsigned char   lovedt[100] = {0x95, 0x4e, 0x0a, 0x4e, 0x5a, 0x53, 0xf2, 0x53, 0x0, 0x0};
-	unsigned char	lovedt2[100] = {0xf2, 0x53, 0x5a, 0x53, 0x0a, 0x4e, 0x95, 0x4e, 0x0, 0x0};
+	unsigned char   lovedt[100];
+	unsigned char	lovedt2[100];
 	SQLWCHAR	wchar[100];
 	SQLCHAR		str[100];
 	SQLCHAR		chardt[100];
 	// SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂𪘚𪚲'");
 	SQLTCHAR	query[512] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂'");
 
+	init_lovedt(lovedt, lovedt2, sizeof(lovedt));
 	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, (SQLPOINTER) chardt, sizeof(chardt), &ind);
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_CHAR failed", hstmt);
 
@@ -51,7 +52,7 @@ static int utf8_test_one(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_WCHAR", hstmt);
 	while (SQL_SUCCEEDED(rc = SQLFetch(hstmt)))
 	{
-		print_utf16_le(wchar);
+		print_utf16(wchar);
 	}
 	SQLFreeStmt(hstmt, SQL_CLOSE);
 
