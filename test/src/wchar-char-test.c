@@ -20,19 +20,37 @@
 #define stricmp strcasecmp
 #endif
 
+/*
+ * Print the code points of a UTF-16 string.  Read the SQLWCHAR values
+ * directly: looking at their bytes printed the values correctly only on
+ * little-endian machines.
+ */
 static void
-print_utf16_le(const SQLWCHAR *wdt)
+print_utf16(const SQLWCHAR *wdt)
 {
 	int	i;
-	unsigned char *ucdt;
 
 	for (i = 0; wdt[i]; i++)
-	{
-		ucdt = (unsigned char *) &wdt[i];
-		printf("U+%02X%02X", ucdt[1], ucdt[0]);
-	}
+		printf("U+%04X", (unsigned int) wdt[i]);
 	printf("\n");
 	fflush(stdout);
+}
+
+/*
+ * The test parameters hold UTF-16 code units.  Filling a byte buffer with
+ * them by hand, least significant byte first, gave the wrong characters on
+ * big-endian machines.  Copy the code units in the byte order of the host.
+ */
+static const SQLWCHAR lovedt_units[] = {0x4E95, 0x4E0A, 0x535A, 0x53F2};
+static const SQLWCHAR lovedt2_units[] = {0x53F2, 0x535A, 0x4E0A, 0x4E95};
+
+static void
+init_lovedt(unsigned char *lovedt, unsigned char *lovedt2, size_t buflen)
+{
+	memset(lovedt, 0, buflen);
+	memset(lovedt2, 0, buflen);
+	memcpy(lovedt, lovedt_units, sizeof(lovedt_units));
+	memcpy(lovedt2, lovedt2_units, sizeof(lovedt2_units));
 }
 
 #include	"wchar-char-test-sjis.c"
